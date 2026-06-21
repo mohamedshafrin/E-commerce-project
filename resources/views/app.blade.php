@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Central Trading</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1704,7 +1704,7 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
+    <script type="text/babel" data-presets="env,react">
         @verbatim
         const { useEffect, useMemo, useState } = React;
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
@@ -1734,8 +1734,8 @@
         };
 
         function App() {
-            const [state, setState] = useState({ auth: {}, banner: null, categories: [], products: [], orders: [] });
-            const [filters, setFilters] = useState({ search: '', category: '', min_price: '', max_price: '', min_discount: 0 });
+            const [state, setState] = useState({ auth: {}, banner: null, categories: [], subcategories: [], products: [], orders: [] });
+            const [filters, setFilters] = useState({ search: '', category: '', subcategory: '', min_price: '', max_price: '', min_discount: 0 });
             const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem('myb_cart') || '[]'));
             const [cartOpen, setCartOpen] = useState(false);
             const [selectedProduct, setSelectedProduct] = useState(null);
@@ -1747,7 +1747,7 @@
                 const params = new URLSearchParams(Object.entries(filters).filter(([,v]) => String(v) !== ''));
                 return api(endpoint('/api/state?' + params.toString())).then(setState);
             };
-            useEffect(() => { load(); }, [filters.search, filters.category, filters.min_price, filters.max_price, filters.min_discount]);
+            useEffect(() => { load(); }, [filters.search, filters.category, filters.subcategory, filters.min_price, filters.max_price, filters.min_discount]);
             useEffect(() => { localStorage.setItem('myb_cart', JSON.stringify(cart)); }, [cart]);
             useEffect(refreshIcons);
 
@@ -1868,11 +1868,13 @@
                 { id: 'all', name: 'All Items', description: 'Complete catalog', slug: '' },
                 ...state.categories
             ];
+            const selectedCategory = state.categories.find(category => category.slug === filters.category);
+            const availableSubcategories = state.subcategories.filter(subcategory => !selectedCategory || subcategory.category_id === selectedCategory.id);
             const renderCategoryCard = (category, copy) => (
                 <button
                     key={`${copy}-${category.id}`}
                     className={'category-tile ' + (filters.category === category.slug ? 'active':'')}
-                    onClick={() => setFilters({...filters, category: category.slug})}
+                    onClick={() => setFilters({...filters, category: category.slug, subcategory: ''})}
                     tabIndex={copy === 'loop' ? -1 : 0}
                 >
                     <strong>{category.name}</strong>
@@ -1922,11 +1924,12 @@
                             <aside className="panel filters">
                                 <h3><i data-lucide="sliders-horizontal"></i> Refine items</h3>
                                 <div className="filter-card">
-                                    <label className="filter-field"><span>Category</span><select value={filters.category} onChange={e => setFilters({...filters, category:e.target.value})}><option value="">All categories</option>{state.categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}</select></label>
+                                    <label className="filter-field"><span>Category</span><select value={filters.category} onChange={e => setFilters({...filters, category:e.target.value, subcategory:''})}><option value="">All categories</option>{state.categories.map(c => <option key={c.id} value={c.slug}>{c.name}</option>)}</select></label>
+                                    <label className="filter-field"><span>Subcategory</span><select value={filters.subcategory} onChange={e => setFilters({...filters, subcategory:e.target.value})} disabled={availableSubcategories.length === 0}><option value="">All subcategories</option>{availableSubcategories.map(s => <option key={s.id} value={s.slug}>{s.name}</option>)}</select></label>
                                     <label className="filter-field"><span>Minimum price</span><input type="number" placeholder="Rs. 0" value={filters.min_price} onChange={e => setFilters({...filters, min_price:e.target.value})} /></label>
                                     <label className="filter-field"><span>Maximum price</span><input type="number" placeholder="Any price" value={filters.max_price} onChange={e => setFilters({...filters, max_price:e.target.value})} /></label>
                                     <label className="filter-field range-wrap"><span>Minimum discount</span><input type="range" min="0" max="60" value={filters.min_discount} onChange={e => setFilters({...filters, min_discount:e.target.value})} /><small>{filters.min_discount}% or more</small></label>
-                                    <button className="ghost-btn" onClick={() => setFilters({search:'', category:'', min_price:'', max_price:'', min_discount:0})}><i data-lucide="rotate-ccw"></i> Reset filters</button>
+                                    <button className="ghost-btn" onClick={() => setFilters({search:'', category:'', subcategory:'', min_price:'', max_price:'', min_discount:0})}><i data-lucide="rotate-ccw"></i> Reset filters</button>
                                 </div>
                             </aside>
                             <div className="product-grid">
@@ -2037,7 +2040,7 @@
                         <span className="image-view-hint"><i data-lucide="zoom-in"></i> View</span>
                     </button>
                     <div className="product-body">
-                        <small>{product.category_name}</small>
+                        <small>{product.subcategory_name ? `${product.category_name} / ${product.subcategory_name}` : product.category_name}</small>
                         <h3>{product.name}</h3>
                         <p>{product.description}</p>
                         <div className="price-row"><strong>{money(product.selling_price)}</strong>{Number(product.discount_percent) > 0 && <del>{money(product.price)}</del>}</div>
@@ -2142,7 +2145,7 @@
             const [tab, setTab] = useState('products');
             const [confirm, setConfirm] = useState(null);
             const logout = () => api(endpoint('/api/logout'), { method: 'POST' }).then(() => window.location.reload());
-            useEffect(refreshIcons, [tab, state.products.length, state.categories.length, state.orders.length]);
+            useEffect(refreshIcons, [tab, state.products.length, state.categories.length, state.subcategories.length, state.orders.length]);
             useEffect(() => {
                 if (tab !== 'orders') return;
                 reload();
@@ -2157,6 +2160,10 @@
                 categories: {
                     title: 'Category Management',
                     text: 'Organize your store departments and keep category names and descriptions clean for customers.'
+                },
+                subcategories: {
+                    title: 'Subcategory Management',
+                    text: 'Group products inside a department, such as Hemas products under Komarika, Diva, Baby Cheramy, and other brands.'
                 },
                 banner: {
                     title: 'Homepage Banner',
@@ -2177,6 +2184,7 @@
                         {[
                             ['products', 'Products', 'Manage item catalog', 'package'],
                             ['categories', 'Categories', 'Store departments', 'layers'],
+                            ['subcategories', 'Subcategories', 'Brand groups', 'list-tree'],
                             ['banner', 'Banner', 'Homepage hero', 'image'],
                             ['orders', 'Orders', 'Customer operations', 'receipt-text']
                         ].map(([key, label, help, icon]) => <button key={key} className={'tab-btn ' + (tab === key ? 'active':'')} onClick={() => setTab(key)}><i data-lucide={icon}></i><span>{label}<small>{help}</small></span></button>)}
@@ -2197,11 +2205,12 @@
                         <div className="admin-stats">
                             <div className="stat-card"><span>Products</span><strong>{state.products.length}</strong></div>
                             <div className="stat-card"><span>Categories</span><strong>{state.categories.length}</strong></div>
+                            <div className="stat-card"><span>Subcategories</span><strong>{state.subcategories.length}</strong></div>
                             <div className="stat-card"><span>Submitted</span><strong>{pending}</strong></div>
-                            <div className="stat-card"><span>Ready / Complete</span><strong>{ready + complete}</strong></div>
                         </div>
                         {tab === 'products' && <ProductCrud state={state} reload={reload} setNotice={setNotice} setConfirm={setConfirm} />}
                         {tab === 'categories' && <CategoryCrud state={state} reload={reload} setNotice={setNotice} setConfirm={setConfirm} />}
+                        {tab === 'subcategories' && <SubcategoryCrud state={state} reload={reload} setNotice={setNotice} setConfirm={setConfirm} />}
                         {tab === 'banner' && <BannerForm banner={state.banner} reload={reload} setNotice={setNotice} />}
                         {tab === 'orders' && <Orders orders={state.orders} reload={reload} setNotice={setNotice} setConfirm={setConfirm} />}
                     </div>
@@ -2211,11 +2220,14 @@
         }
 
         function ProductCrud({ state, reload, setNotice, setConfirm }) {
-            const blank = { category_id: state.categories[0]?.id || '', name:'', sku:'', description:'', price:'', discount_percent:0, stock:0, image_url:'', is_featured:false };
+            const blank = { category_id: state.categories[0]?.id || '', subcategory_id: '', name:'', sku:'', description:'', price:'', discount_percent:0, stock:0, image_url:'', is_featured:false };
             const [form, setForm] = useState(blank);
+            const selectedCategoryId = Number(form.category_id);
+            const availableSubcategories = state.subcategories.filter(subcategory => Number(subcategory.category_id) === selectedCategoryId);
+            const setCategory = categoryId => setForm({...form, category_id: categoryId, subcategory_id: ''});
             const save = e => { e.preventDefault(); const editing = !!form.id; api(endpoint(editing ? `/api/products/${form.id}` : '/api/products'), { method: editing ? 'PUT':'POST', body: form }).then(d => { setNotice(d.message); setForm(blank); reload(); }).catch(err => setNotice(err.message)); };
             const del = product => setConfirm({ title: 'Delete product?', message: `This will remove "${product.name}" from the catalog.`, onConfirm: () => api(endpoint(`/api/products/${product.id}`), { method:'DELETE' }).then(d => { setNotice(d.message); reload(); }) });
-            return <div className="crud-grid"><form className="panel" onSubmit={save}><label>Category<select value={form.category_id} onChange={e => setForm({...form, category_id:e.target.value})}>{state.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Name<input value={form.name} onChange={e => setForm({...form, name:e.target.value})} required /></label><label>SKU<input value={form.sku || ''} onChange={e => setForm({...form, sku:e.target.value})} /></label><label>Description<textarea rows="4" value={form.description || ''} onChange={e => setForm({...form, description:e.target.value})}></textarea></label><div className="form-row"><label>Price<input type="number" value={form.price} onChange={e => setForm({...form, price:e.target.value})} required /></label><label>Discount %<input type="number" value={form.discount_percent} onChange={e => setForm({...form, discount_percent:e.target.value})} /></label><label>Stock<input type="number" value={form.stock} onChange={e => setForm({...form, stock:e.target.value})} /></label></div><label>Image URL<input value={form.image_url || ''} onChange={e => setForm({...form, image_url:e.target.value})} /></label><label style={{display:'flex', flexDirection:'row'}}><input style={{width:'auto'}} type="checkbox" checked={!!form.is_featured} onChange={e => setForm({...form, is_featured:e.target.checked})} /> Featured</label><button className="primary-btn" type="submit"><i data-lucide="save"></i><span>{form.id ? 'Update item':'Create item'}</span></button></form><div className="table-list">{state.products.map(p => <div className="table-row" key={p.id}><div><strong>{p.name}</strong><p className="muted">{p.category_name} · {money(p.selling_price)}</p></div><div className="row-actions"><button className="icon-action edit-action" title="Edit product" onClick={() => setForm({...p, is_featured: !!p.is_featured})}><i data-lucide="pencil"></i><span>Edit</span></button><button className="icon-action delete" title="Delete product" onClick={() => del(p)}><i data-lucide="trash-2"></i><span>Delete</span></button></div></div>)}</div></div>;
+            return <div className="crud-grid"><form className="panel" onSubmit={save}><label>Category<select value={form.category_id} onChange={e => setCategory(e.target.value)}>{state.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Subcategory<select value={form.subcategory_id || ''} onChange={e => setForm({...form, subcategory_id:e.target.value})} disabled={availableSubcategories.length === 0}><option value="">No subcategory</option>{availableSubcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label>Name<input value={form.name} onChange={e => setForm({...form, name:e.target.value})} required /></label><label>SKU<input value={form.sku || ''} onChange={e => setForm({...form, sku:e.target.value})} /></label><label>Description<textarea rows="4" value={form.description || ''} onChange={e => setForm({...form, description:e.target.value})}></textarea></label><div className="form-row"><label>Price<input type="number" value={form.price} onChange={e => setForm({...form, price:e.target.value})} required /></label><label>Discount %<input type="number" value={form.discount_percent} onChange={e => setForm({...form, discount_percent:e.target.value})} /></label><label>Stock<input type="number" value={form.stock} onChange={e => setForm({...form, stock:e.target.value})} /></label></div><label>Image URL<input value={form.image_url || ''} onChange={e => setForm({...form, image_url:e.target.value})} /></label><label style={{display:'flex', flexDirection:'row'}}><input style={{width:'auto'}} type="checkbox" checked={!!form.is_featured} onChange={e => setForm({...form, is_featured:e.target.checked})} /> Featured</label><button className="primary-btn" type="submit"><i data-lucide="save"></i><span>{form.id ? 'Update item':'Create item'}</span></button></form><div className="table-list">{state.products.map(p => <div className="table-row" key={p.id}><div><strong>{p.name}</strong><p className="muted">{p.subcategory_name ? `${p.category_name} / ${p.subcategory_name}` : p.category_name} - {money(p.selling_price)}</p></div><div className="row-actions"><button className="icon-action edit-action" title="Edit product" onClick={() => setForm({...p, subcategory_id: p.subcategory_id || '', is_featured: !!p.is_featured})}><i data-lucide="pencil"></i><span>Edit</span></button><button className="icon-action delete" title="Delete product" onClick={() => del(p)}><i data-lucide="trash-2"></i><span>Delete</span></button></div></div>)}</div></div>;
         }
 
         function CategoryCrud({ state, reload, setNotice, setConfirm }) {
@@ -2223,6 +2235,14 @@
             const save = e => { e.preventDefault(); const editing = !!form.id; api(endpoint(editing ? `/api/categories/${form.id}` : '/api/categories'), { method: editing ? 'PUT':'POST', body: form }).then(d => { setNotice(d.message); setForm({name:'', description:''}); reload(); }).catch(err => setNotice(err.message)); };
             const del = category => setConfirm({ title: 'Delete category?', message: `This will remove "${category.name}" and its products.`, onConfirm: () => api(endpoint(`/api/categories/${category.id}`), { method:'DELETE' }).then(d => { setNotice(d.message); reload(); }) });
             return <div className="crud-grid"><form className="panel" onSubmit={save}><label>Category name<input value={form.name} onChange={e => setForm({...form, name:e.target.value})} required /></label><label>Description<textarea rows="4" value={form.description || ''} onChange={e => setForm({...form, description:e.target.value})}></textarea></label><button className="primary-btn"><i data-lucide="save"></i><span>{form.id ? 'Update category':'Create category'}</span></button></form><div className="table-list">{state.categories.map(c => <div className="table-row" key={c.id}><div><strong>{c.name}</strong><p className="muted">{c.description}</p></div><div className="row-actions"><button className="icon-action edit-action" title="Edit category" onClick={() => setForm(c)}><i data-lucide="pencil"></i><span>Edit</span></button><button className="icon-action delete" title="Delete category" onClick={() => del(c)}><i data-lucide="trash-2"></i><span>Delete</span></button></div></div>)}</div></div>;
+        }
+
+        function SubcategoryCrud({ state, reload, setNotice, setConfirm }) {
+            const blank = { category_id: state.categories.find(c => c.slug === 'hemas')?.id || state.categories[0]?.id || '', name:'', description:'' };
+            const [form, setForm] = useState(blank);
+            const save = e => { e.preventDefault(); const editing = !!form.id; api(endpoint(editing ? `/api/subcategories/${form.id}` : '/api/subcategories'), { method: editing ? 'PUT':'POST', body: form }).then(d => { setNotice(d.message); setForm(blank); reload(); }).catch(err => setNotice(err.message)); };
+            const del = subcategory => setConfirm({ title: 'Delete subcategory?', message: `This will remove "${subcategory.name}" and keep its products under the main category.`, onConfirm: () => api(endpoint(`/api/subcategories/${subcategory.id}`), { method:'DELETE' }).then(d => { setNotice(d.message); reload(); }) });
+            return <div className="crud-grid"><form className="panel" onSubmit={save}><label>Main category<select value={form.category_id} onChange={e => setForm({...form, category_id:e.target.value})}>{state.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Subcategory name<input value={form.name} onChange={e => setForm({...form, name:e.target.value})} required /></label><label>Description<textarea rows="4" value={form.description || ''} onChange={e => setForm({...form, description:e.target.value})}></textarea></label><button className="primary-btn"><i data-lucide="save"></i><span>{form.id ? 'Update subcategory':'Create subcategory'}</span></button></form><div className="table-list">{state.subcategories.map(s => <div className="table-row" key={s.id}><div><strong>{s.name}</strong><p className="muted">{s.category_name} - {s.description}</p></div><div className="row-actions"><button className="icon-action edit-action" title="Edit subcategory" onClick={() => setForm(s)}><i data-lucide="pencil"></i><span>Edit</span></button><button className="icon-action delete" title="Delete subcategory" onClick={() => del(s)}><i data-lucide="trash-2"></i><span>Delete</span></button></div></div>)}</div></div>;
         }
 
         function BannerForm({ banner, reload, setNotice }) {
@@ -2398,3 +2418,5 @@
     </script>
 </body>
 </html>
+
+

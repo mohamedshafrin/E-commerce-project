@@ -20,6 +20,7 @@ class EcommerceController extends Controller
         $filters = [
             'search' => trim((string) $request->query('search', '')),
             'category' => trim((string) $request->query('category', '')),
+            'subcategory' => trim((string) $request->query('subcategory', '')),
             'min_price' => $request->query('min_price'),
             'max_price' => $request->query('max_price'),
             'min_discount' => $request->query('min_discount'),
@@ -29,6 +30,12 @@ class EcommerceController extends Controller
             'auth' => ['user' => session('user')],
             'banner' => DB::table('home_banners')->where('is_active', true)->first(),
             'categories' => DB::table('categories')->orderBy('name')->get(),
+            'subcategories' => DB::table('subcategories as s')
+                ->join('categories as c', 'c.id', '=', 's.category_id')
+                ->select('s.*', 'c.name as category_name', 'c.slug as category_slug')
+                ->orderBy('c.name')
+                ->orderBy('s.name')
+                ->get(),
             'products' => $this->productsQuery($filters)->get(),
             'orders' => $this->isSuperAdmin() ? $this->ordersWithItems() : [],
             'csrf' => csrf_token(),
@@ -104,6 +111,55 @@ class EcommerceController extends Controller
         $this->authorizeSuperAdmin();
         DB::table('categories')->where('id', $id)->delete();
         return response()->json(['message' => 'Category deleted.']);
+    }
+
+    public function storeSubcategory(Request $request)
+    {
+        $this->authorizeSuperAdmin();
+        $data = $request->validate([
+            'category_id' => 'required|integer|exists:categories,id',
+            'name' => 'required|string|max:120',
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        DB::table('subcategories')->insert([
+            'category_id' => $data['category_id'],
+            'name' => $data['name'],
+            'slug' => Str::slug($data['name']),
+            'description' => $data['description'] ?? null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['message' => 'Subcategory created.']);
+    }
+
+    public function updateSubcategory(Request $request, int $id)
+    {
+        $this->authorizeSuperAdmin();
+        $data = $request->validate([
+            'category_id' => 'required|integer|exists:categories,id',
+            'name' => 'required|string|max:120',
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        DB::table('subcategories')->where('id', $id)->update([
+            'category_id' => $data['category_id'],
+            'name' => $data['name'],
+            'slug' => Str::slug($data['name']),
+            'description' => $data['description'] ?? null,
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['message' => 'Subcategory updated.']);
+    }
+
+    public function deleteSubcategory(int $id)
+    {
+        $this->authorizeSuperAdmin();
+        DB::table('products')->where('subcategory_id', $id)->update(['subcategory_id' => null, 'updated_at' => now()]);
+        DB::table('subcategories')->where('id', $id)->delete();
+        return response()->json(['message' => 'Subcategory deleted.']);
     }
 
     public function storeProduct(Request $request)
@@ -377,19 +433,25 @@ class EcommerceController extends Controller
     {
         $query = DB::table('products as p')
             ->join('categories as c', 'c.id', '=', 'p.category_id')
-            ->select('p.*', 'c.name as category_name', 'c.slug as category_slug')
+            ->leftJoin('subcategories as s', 's.id', '=', 'p.subcategory_id')
+            ->select('p.*', 'c.name as category_name', 'c.slug as category_slug', 's.name as subcategory_name', 's.slug as subcategory_slug')
             ->selectRaw('ROUND(p.price - (p.price * p.discount_percent / 100), 2) as selling_price');
 
         if ($filters['search'] !== '') {
             $query->where(function ($q) use ($filters) {
                 $q->where('p.name', 'like', '%' . $filters['search'] . '%')
                     ->orWhere('p.description', 'like', '%' . $filters['search'] . '%')
-                    ->orWhere('c.name', 'like', '%' . $filters['search'] . '%');
+                    ->orWhere('c.name', 'like', '%' . $filters['search'] . '%')
+                    ->orWhere('s.name', 'like', '%' . $filters['search'] . '%');
             });
         }
 
         if ($filters['category'] !== '') {
             $query->where('c.slug', $filters['category']);
+        }
+
+        if ($filters['subcategory'] !== '') {
+            $query->where('s.slug', $filters['subcategory']);
         }
 
         if (is_numeric($filters['min_price'])) {
@@ -411,6 +473,7 @@ class EcommerceController extends Controller
     {
         $data = $request->validate([
             'category_id' => 'required|integer|exists:categories,id',
+            'subcategory_id' => 'nullable|integer|exists:subcategories,id',
             'name' => 'required|string|max:160',
             'sku' => 'nullable|string|max:80',
             'description' => 'nullable|string',
@@ -421,8 +484,18 @@ class EcommerceController extends Controller
             'is_featured' => 'nullable|boolean',
         ]);
 
+        if (! empty($data['subcategory_id'])) {
+            $belongsToCategory = DB::table('subcategories')
+                ->where('id', $data['subcategory_id'])
+                ->where('category_id', $data['category_id'])
+                ->exists();
+
+            abort_unless($belongsToCategory, 422, 'Selected subcategory does not belong to this category.');
+        }
+
         return [
             'category_id' => $data['category_id'],
+            'subcategory_id' => $data['subcategory_id'] ?? null,
             'name' => $data['name'],
             'sku' => $data['sku'] ?? null,
             'description' => $data['description'] ?? null,
