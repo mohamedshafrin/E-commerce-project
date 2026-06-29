@@ -655,7 +655,10 @@
             display: grid;
             grid-template-rows: auto minmax(0, 1fr) auto;
             gap: 18px;
-            background: rgba(0,0,0,.82);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            background: rgba(0,0,0,.9);
             color: var(--ink);
             padding: 22px;
         }
@@ -686,6 +689,7 @@
             overflow: auto;
             width: min(100%, 1180px);
             min-height: 0;
+            max-height: 100%;
             margin: 0 auto;
             border: 1px solid rgba(237,237,237,.18);
             border-radius: 8px;
@@ -1630,23 +1634,71 @@
                 min-height: 138px;
             }
             .image-lightbox {
-                padding: 14px;
+                gap: 10px;
+                padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
             }
             .image-lightbox-head,
             .image-lightbox-tools {
-                align-items: stretch;
-                flex-direction: column;
+                align-items: center;
+                flex-direction: row;
+                gap: 8px;
+                justify-self: stretch;
+                width: auto;
+                max-width: 100%;
+                min-width: 0;
+                margin: 0;
+            }
+            .image-lightbox-title h2 {
+                font-size: 1rem;
+                line-height: 1.15;
+            }
+            .image-lightbox-title p {
+                font-size: .8rem;
+            }
+            .image-lightbox-head .drawer-close,
+            .image-lightbox-tools .ghost-btn {
+                min-height: 38px;
+                padding: 8px 10px;
+            }
+            .image-lightbox-tools .ghost-btn {
+                flex: 0 0 86px;
+            }
+            .image-lightbox-stage {
+                justify-self: stretch;
+                width: auto;
+                max-width: 100%;
+                min-width: 0;
+                margin: 0;
+                overflow: hidden;
+                border-radius: 8px;
             }
             .image-lightbox-stage img {
-                max-width: 96%;
-                max-height: 62vh;
+                max-width: calc(100vw - 28px);
+                max-height: calc(100dvh - 178px);
             }
             .zoom-controls {
-                width: 100%;
-                justify-content: space-between;
+                flex: 1 1 auto;
+                min-width: 0;
+                gap: 6px;
+                padding: 7px 6px;
+            }
+            .zoom-controls .drawer-close {
+                flex: 0 0 36px;
+                width: 36px;
+                min-width: 36px;
+                padding: 0;
             }
             .zoom-controls input {
-                width: min(42vw, 180px);
+                flex: 1 1 42px;
+                width: auto;
+                min-width: 42px;
+            }
+            .zoom-value {
+                flex: 0 0 42px;
+                min-width: 42px;
+                font-size: .78rem;
+                padding-right: 0;
+                text-align: center;
             }
             .hero { padding: 30px 16px; }
             .hero-copy, .hero-media { min-height: auto; }
@@ -2003,9 +2055,9 @@
                             <p className="eyebrow">Store details</p>
                             <h2>Central Trading</h2>
                             <div className="contact-methods">
-                                <div className="contact-method"><i data-lucide="phone"></i><strong>Hotline</strong><span>+94 77 000 0000</span></div>
+                                <div className="contact-method"><i data-lucide="phone"></i><strong>Hotline</strong><span>+94 77 5690690 | +94 77 7579636</span></div>
                                 <div className="contact-method"><i data-lucide="mail"></i><strong>Email</strong><span>hello@my-bussiness.local</span></div>
-                                <div className="contact-method"><i data-lucide="map-pin"></i><strong>Address</strong><span>Add your business address here.</span></div>
+                                <div className="contact-method"><i data-lucide="map-pin"></i><strong>Address</strong><span>28/Zahira Collage Road Dharga Town</span></div>
                             </div>
                             <div className="contact-service-grid">
                                 <div className="service-card"><strong>Order support</strong><p>Ask about submitted orders, quantities, delivery timing, or product changes.</p></div>
@@ -2054,11 +2106,16 @@
             const [zoom, setZoom] = useState(100);
             const [focus, setFocus] = useState({ x: 50, y: 50 });
             useEffect(() => {
+                const previousOverflow = document.body.style.overflow;
+                document.body.style.overflow = 'hidden';
                 const closeOnEscape = event => {
                     if (event.key === 'Escape') setSelectedProduct(null);
                 };
                 window.addEventListener('keydown', closeOnEscape);
-                return () => window.removeEventListener('keydown', closeOnEscape);
+                return () => {
+                    document.body.style.overflow = previousOverflow;
+                    window.removeEventListener('keydown', closeOnEscape);
+                };
             }, []);
             const focusViewerImage = event => {
                 const rect = event.currentTarget.getBoundingClientRect();
@@ -2410,7 +2467,8 @@
         }
 
         function Footer() {
-            return <footer className="footer" id="contact"><div className="footer-inner"><div><h2>Central Trading</h2><p>Industrial level ecommerce for local retail, wholesale, and daily essentials.</p></div><div><h3>Contact</h3><p>+94 77 000 0000</p><p>hello@my-bussiness.local</p></div><div><h3>Store</h3><a href="#items">All Items</a><a href="#categories">Categories</a></div><div><h3>Brand</h3><p>Dark navy and #00d424 business color system.</p></div></div></footer>;
+            return <footer className="footer" id="contact"><div className="footer-inner"><div><h2>Central Trading</h2><p>IWe supply wholesale and retail products from trusted brands such as Hemas, Kandos, Bairaha, My Cola, Watawala, Britol, bottled water, and many other daily-use items.
+</p></div><div><h3>Contact</h3><p>+94 77 5690690 | +94 77 7579636</p><p>hello@my-bussiness.local</p></div><div><h3>Store</h3><a href="#items">All Items</a><a href="#categories">Categories</a></div><div><h3>Brand</h3><p>Hemas, Kandos, Bairaha, My Cola, Watawala, Britol, bottled water</p></div></div></footer>;
         }
 
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
