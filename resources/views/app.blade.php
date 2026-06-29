@@ -393,12 +393,13 @@
             box-shadow: 0 10px 24px rgba(20, 31, 31, .06);
             text-align: left;
             padding: 18px;
+            transition: border-color .32s ease, box-shadow .32s ease, transform .32s ease;
         }
         .category-tile:hover,
         .category-tile:focus-visible {
             border-color: var(--brand);
-            box-shadow: 0 16px 34px rgba(0, 212, 36, .12);
-            transform: translateY(-2px);
+            box-shadow: 0 18px 40px rgba(0, 212, 36, .16);
+            transform: translateY(-3px);
         }
         .category-tile strong {
             display: block;
@@ -411,6 +412,7 @@
             line-height: 1.35;
         }
         .category-logo-frame {
+            position: relative;
             display: grid;
             place-items: center;
             width: 100%;
@@ -422,12 +424,31 @@
             background: #ffffff;
             padding: 8px;
         }
+        .category-logo-frame::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(110deg, transparent 0%, transparent 34%, rgba(255,255,255,.8) 48%, transparent 62%, transparent 100%);
+            transform: translateX(-130%);
+            animation: logoSheen 7.2s ease-in-out infinite;
+            pointer-events: none;
+        }
         .category-logo-frame img {
             display: block;
             width: calc(100% - 4px);
             height: calc(100% - 4px);
             object-fit: contain;
             object-position: center;
+            filter: drop-shadow(0 8px 10px rgba(8,27,41,.1));
+            transform-origin: center;
+            animation: logoFloat 5.8s ease-in-out infinite;
+            transition: filter .32s ease, transform .32s ease;
+        }
+        .category-tile:hover .category-logo-frame img,
+        .category-tile:focus-visible .category-logo-frame img {
+            animation-play-state: paused;
+            filter: drop-shadow(0 12px 14px rgba(8,27,41,.16));
+            transform: scale(1.035);
         }
         .category-logo-frame img.logo-wide {
             width: 118%;
@@ -454,9 +475,20 @@
             border-color: var(--brand-strong);
             background: linear-gradient(135deg, #ffffff, #e9fbfc);
         }
+        .category-tile.active .category-logo-frame {
+            box-shadow: 0 0 0 1px rgba(0,212,36,.14), 0 12px 30px rgba(0,212,36,.1);
+        }
         @keyframes categorySlide {
             from { transform: translateX(0); }
             to { transform: translateX(calc(-50% - 8px)); }
+        }
+        @keyframes logoFloat {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-2px) scale(1.012); }
+        }
+        @keyframes logoSheen {
+            0%, 54% { transform: translateX(-130%); }
+            76%, 100% { transform: translateX(130%); }
         }
         .shop-grid {
             display: grid;
@@ -1870,6 +1902,10 @@
             .ct-loader-spinner::before {
                 animation: none;
             }
+            .category-logo-frame::after,
+            .category-logo-frame img {
+                animation: none;
+            }
         }
     </style>
 </head>
@@ -2081,7 +2117,7 @@
             const banner = state.banner || {};
             const categoryLogos = {
                 mycola: { image: '/images/brands/mycola-display.png', accent: '#1658a8', fit: 'logo-square' },
-                byraha: { image: '/images/brands/byraha-display.png', accent: '#df1f2d', fit: 'logo-square' },
+                byraha: { image: '/images/brands/byraha-display.png', accent: '#df1f2d', fit: 'logo-wide' },
                 britol: { image: '/images/brands/britol-display.png', accent: '#1c58a8', fit: 'logo-wide' },
                 'mineral-water': { image: '/images/brands/mineral-water-display.png', accent: '#18a8dd', fit: 'logo-square' },
                 kandos: { image: '/images/brands/kandos-display.png', accent: '#f5ca14', fit: 'logo-wide' },
