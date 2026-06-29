@@ -83,6 +83,76 @@
             font-weight: 900;
         }
         .brand span:last-child { color: var(--brand); }
+        .ct-loader-overlay {
+            position: fixed;
+            z-index: 240;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            pointer-events: none;
+            background: rgba(8, 27, 41, .42);
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            transition: opacity .18s ease;
+        }
+        .ct-loader-overlay.visible {
+            opacity: 1;
+        }
+        .ct-loader-card {
+            display: grid;
+            justify-items: center;
+            gap: 12px;
+            border: 1px solid rgba(0, 212, 36, .38);
+            border-radius: 8px;
+            background: rgba(8, 27, 41, .88);
+            box-shadow: 0 22px 70px rgba(0, 0, 0, .36), 0 0 34px rgba(0, 212, 36, .18);
+            padding: 22px 24px 18px;
+            transform: translateY(10px) scale(.96);
+            transition: transform .18s ease;
+        }
+        .ct-loader-overlay.visible .ct-loader-card {
+            transform: translateY(0) scale(1);
+        }
+        .ct-loader-spinner {
+            position: relative;
+            display: grid;
+            place-items: center;
+            width: 82px;
+            height: 82px;
+        }
+        .ct-loader-spinner::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border: 4px solid rgba(237, 237, 237, .16);
+            border-top-color: var(--brand);
+            border-right-color: var(--brand);
+            border-radius: 50%;
+            animation: ctLoaderSpin .82s linear infinite;
+        }
+        .ct-loader-mark {
+            display: grid;
+            place-items: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: var(--brand);
+            color: #06210d;
+            font-size: 1.12rem;
+            font-weight: 900;
+            box-shadow: inset 0 -2px 0 rgba(0,0,0,.12);
+        }
+        .ct-loader-text {
+            margin: 0;
+            color: var(--ink);
+            font-size: .88rem;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        @keyframes ctLoaderSpin {
+            to { transform: rotate(360deg); }
+        }
         .header-search {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
@@ -308,18 +378,21 @@
         .category-track {
             display: flex;
             width: max-content;
-            gap: 16px;
+            gap: 18px;
             animation: categorySlide 42s linear infinite;
         }
         .category-tile {
-            flex: 0 0 clamp(220px, 14vw, 260px);
-            min-height: 150px;
+            flex: 0 0 clamp(250px, 16vw, 300px);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            gap: 14px;
+            min-height: 238px;
             border: 1px solid var(--line);
             border-radius: 8px;
             background: var(--white);
             box-shadow: 0 10px 24px rgba(20, 31, 31, .06);
             text-align: left;
-            padding: 22px;
+            padding: 18px;
         }
         .category-tile:hover,
         .category-tile:focus-visible {
@@ -329,13 +402,53 @@
         }
         .category-tile strong {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 0;
             font-size: 1.12rem;
         }
         .category-tile p {
             margin: 0;
             font-size: .98rem;
             line-height: 1.35;
+        }
+        .category-logo-frame {
+            display: grid;
+            place-items: center;
+            width: 100%;
+            height: 132px;
+            overflow: hidden;
+            border: 1px solid rgba(8,27,41,.1);
+            border-top: 4px solid var(--logo-accent, var(--brand));
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 8px;
+        }
+        .category-logo-frame img {
+            display: block;
+            width: calc(100% - 4px);
+            height: calc(100% - 4px);
+            object-fit: contain;
+            object-position: center;
+        }
+        .category-logo-frame img.logo-wide {
+            width: 118%;
+            height: 118%;
+            max-width: none;
+        }
+        .category-logo-frame img.logo-square {
+            width: 108%;
+            height: 108%;
+            max-width: none;
+        }
+        .category-logo-fallback {
+            display: grid;
+            place-items: center;
+            width: 54px;
+            height: 54px;
+            border-radius: 8px;
+            background: var(--brand);
+            color: var(--white);
+            font-size: 1rem;
+            font-weight: 900;
         }
         .category-tile.active {
             border-color: var(--brand-strong);
@@ -1630,8 +1743,12 @@
                 animation-duration: 34s;
             }
             .category-tile {
-                flex-basis: 230px;
-                min-height: 138px;
+                flex-basis: 250px;
+                min-height: 216px;
+            }
+            .category-logo-frame {
+                height: 112px;
+                padding: 7px;
             }
             .image-lightbox {
                 gap: 10px;
@@ -1750,6 +1867,9 @@
             .category-tile {
                 transition: none;
             }
+            .ct-loader-spinner::before {
+                animation: none;
+            }
         }
     </style>
 </head>
@@ -1758,7 +1878,7 @@
 
     <script type="text/babel" data-presets="env,react">
         @verbatim
-        const { useEffect, useMemo, useState } = React;
+        const { useEffect, useMemo, useRef, useState } = React;
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
         const basePath = window.location.pathname.includes('/public')
             ? window.location.pathname.split('/public')[0] + '/public'
@@ -1768,16 +1888,21 @@
             if (!window.lucide) return;
             window.requestAnimationFrame(() => window.lucide.createIcons());
         };
-        const api = (url, options = {}) => fetch(url, {
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-            credentials: 'same-origin',
-            ...options,
-            body: options.body ? JSON.stringify(options.body) : undefined,
-        }).then(async response => {
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(data.message || 'Request failed');
-            return data;
-        });
+        const api = (url, options = {}) => {
+            window.dispatchEvent(new CustomEvent('ct-loader:start'));
+            return fetch(url, {
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                ...options,
+                body: options.body ? JSON.stringify(options.body) : undefined,
+            }).then(async response => {
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.message || 'Request failed');
+                return data;
+            }).finally(() => {
+                window.dispatchEvent(new CustomEvent('ct-loader:end'));
+            });
+        };
         const endpoint = path => basePath + path;
         const assetUrl = url => {
             if (!url) return '';
@@ -1794,6 +1919,9 @@
             const [adminOpen, setAdminOpen] = useState(false);
             const [screen, setScreen] = useState('home');
             const [notice, setNotice] = useState('');
+            const [loaderVisible, setLoaderVisible] = useState(false);
+            const [activeRequests, setActiveRequests] = useState(0);
+            const loaderTimer = useRef(null);
 
             const load = () => {
                 const params = new URLSearchParams(Object.entries(filters).filter(([,v]) => String(v) !== ''));
@@ -1802,6 +1930,27 @@
             useEffect(() => { load(); }, [filters.search, filters.category, filters.subcategory, filters.min_price, filters.max_price, filters.min_discount]);
             useEffect(() => { localStorage.setItem('myb_cart', JSON.stringify(cart)); }, [cart]);
             useEffect(refreshIcons);
+            useEffect(() => {
+                const showClickLoader = event => {
+                    if (event.target.closest?.('.ct-loader-overlay')) return;
+                    setLoaderVisible(true);
+                    window.clearTimeout(loaderTimer.current);
+                    loaderTimer.current = window.setTimeout(() => setLoaderVisible(false), 1000);
+                };
+                const startRequest = () => setActiveRequests(count => count + 1);
+                const endRequest = () => setActiveRequests(count => Math.max(0, count - 1));
+
+                document.addEventListener('click', showClickLoader, true);
+                window.addEventListener('ct-loader:start', startRequest);
+                window.addEventListener('ct-loader:end', endRequest);
+
+                return () => {
+                    window.clearTimeout(loaderTimer.current);
+                    document.removeEventListener('click', showClickLoader, true);
+                    window.removeEventListener('ct-loader:start', startRequest);
+                    window.removeEventListener('ct-loader:end', endRequest);
+                };
+            }, []);
 
             const user = state.auth?.user;
             const isAdmin = user?.role === 'super_admin';
@@ -1817,6 +1966,7 @@
 
             return (
                 <>
+                    <GlobalLoader visible={loaderVisible || activeRequests > 0} />
                     {!(adminOpen && isAdmin) && <Header filters={filters} setFilters={setFilters} load={load} cartCount={cartCount} setCartOpen={setCartOpen} user={user} isAdmin={isAdmin} setAdminOpen={setAdminOpen} setState={setState} setScreen={setScreen} />}
                     {notice && <div className="alert" style={{width:'min(100%,1640px)', margin:'18px auto 0'}}>{notice}</div>}
                     {adminOpen && isAdmin ? (
@@ -1832,6 +1982,19 @@
                     {cartOpen && <CartDrawer cart={cart} setCart={setCart} setCartOpen={setCartOpen} setNotice={setNotice} reload={load} />}
                     {selectedProduct && <ProductImageViewer product={selectedProduct} setSelectedProduct={setSelectedProduct} />}
                 </>
+            );
+        }
+
+        function GlobalLoader({ visible }) {
+            return (
+                <div className={'ct-loader-overlay ' + (visible ? 'visible' : '')} aria-hidden={!visible}>
+                    <div className="ct-loader-card">
+                        <div className="ct-loader-spinner">
+                            <span className="ct-loader-mark">CT</span>
+                        </div>
+                        <p className="ct-loader-text">Loading...</p>
+                    </div>
+                </div>
             );
         }
 
@@ -1916,6 +2079,15 @@
 
         function Store({ state, filters, setFilters, load, addToCart, setSelectedProduct }) {
             const banner = state.banner || {};
+            const categoryLogos = {
+                mycola: { image: '/images/brands/mycola-display.png', accent: '#1658a8', fit: 'logo-square' },
+                byraha: { image: '/images/brands/byraha-display.png', accent: '#df1f2d', fit: 'logo-square' },
+                britol: { image: '/images/brands/britol-display.png', accent: '#1c58a8', fit: 'logo-wide' },
+                'mineral-water': { image: '/images/brands/mineral-water-display.png', accent: '#18a8dd', fit: 'logo-square' },
+                kandos: { image: '/images/brands/kandos-display.png', accent: '#f5ca14', fit: 'logo-wide' },
+                'watawala-tea': { image: '/images/brands/watawala-tea-display.png', accent: '#f5c400', fit: 'logo-square' },
+                hemas: { image: '/images/brands/hemas-display.png', accent: '#057e94', fit: 'logo-wide' },
+            };
             const categoryCards = [
                 { id: 'all', name: 'All Items', description: 'Complete catalog', slug: '' },
                 ...state.categories
@@ -1928,7 +2100,11 @@
                     className={'category-tile ' + (filters.category === category.slug ? 'active':'')}
                     onClick={() => setFilters({...filters, category: category.slug, subcategory: ''})}
                     tabIndex={copy === 'loop' ? -1 : 0}
+                    style={{'--logo-accent': categoryLogos[category.slug]?.accent || 'var(--brand)'}}
                 >
+                    <span className="category-logo-frame">
+                        {categoryLogos[category.slug]?.image ? <img className={categoryLogos[category.slug].fit || ''} src={assetUrl(categoryLogos[category.slug].image)} alt={`${category.name} logo`} /> : <span className="category-logo-fallback">CT</span>}
+                    </span>
                     <strong>{category.name}</strong>
                     <p className="muted">{category.description}</p>
                 </button>
